@@ -58,6 +58,7 @@ public class Dealer implements Runnable {
                 placeCardsOnTable();
             }
             catch (Exception e){
+                System.out.println(e);
             }
             timerLoop();
             updateTimerDisplay(false);
@@ -114,15 +115,19 @@ public class Dealer implements Runnable {
      * Check if any cards can be removed from the deck and placed on the table.
      */
     private void placeCardsOnTable() throws InterruptedException {
-        List<Integer> slotNumbers = Arrays.asList(0,1,2,3,4,5,6,7,8,9,10,11);
+        List<Integer> slotNumbers = new ArrayList<>();
+        for (int i = 0 ; i < 12 ;i++)
+            slotNumbers.add(i);
         while (!slotNumbers.isEmpty()){
-            Thread.sleep(50);
+
             Random rand = new Random();
             int index = rand.nextInt(slotNumbers.size());
-            slotNumbers.remove(index);
-            if(table.slotToCard[index]==null) {
+            Integer j = slotNumbers.get(index);
+            slotNumbers.remove(j);
+            if(table.slotToCard[j]==null) {
+                Thread.sleep(200);
                 Random random = new Random();
-                table.placeCard(deck.remove(random.nextInt(deck.size())),index);
+                table.placeCard(deck.remove(random.nextInt(deck.size())),j);
             }
         }
     }
