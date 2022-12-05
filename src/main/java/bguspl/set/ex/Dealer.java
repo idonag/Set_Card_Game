@@ -2,7 +2,10 @@ package bguspl.set.ex;
 
 import bguspl.set.Env;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -51,7 +54,11 @@ public class Dealer implements Runnable {
     public void run() {
         System.out.printf("Info: Thread %s starting.%n", Thread.currentThread().getName());
         while (!shouldFinish()) {
-            placeCardsOnTable();
+            try {
+                placeCardsOnTable();
+            }
+            catch (Exception e){
+            }
             timerLoop();
             updateTimerDisplay(false);
             removeAllCardsFromTable();
@@ -68,7 +75,11 @@ public class Dealer implements Runnable {
             sleepUntilWokenOrTimeout();
             updateTimerDisplay(false);
             removeCardsFromTable();
-            placeCardsOnTable();
+            try {
+                placeCardsOnTable();
+            }
+            catch(Exception e){}
+
         }
     }
 
@@ -91,15 +102,29 @@ public class Dealer implements Runnable {
     /**
      * Checks if any cards should be removed from the table and returns them to the deck.
      */
+    //TODO synchronized this method from players
     private void removeCardsFromTable() {
-        // TODO implement
+        List<Integer> currentSlots = Arrays.asList(table.slotToCard);
+        if(env.util.findSets(currentSlots,1).size() == 0){
+            removeAllCardsFromTable();
+        }
     }
 
     /**
      * Check if any cards can be removed from the deck and placed on the table.
      */
-    private void placeCardsOnTable() {
-        // TODO implement
+    private void placeCardsOnTable() throws InterruptedException {
+        List<Integer> slotNumbers = Arrays.asList(0,1,2,3,4,5,6,7,8,9,10,11);
+        while (!slotNumbers.isEmpty()){
+            Thread.sleep(50);
+            Random rand = new Random();
+            int index = rand.nextInt(slotNumbers.size());
+            slotNumbers.remove(index);
+            if(table.slotToCard[index]==null) {
+                Random random = new Random();
+                table.placeCard(deck.remove(random.nextInt(deck.size())),index);
+            }
+        }
     }
 
     /**
@@ -113,14 +138,23 @@ public class Dealer implements Runnable {
      * Reset and/or update the countdown and the countdown display.
      */
     private void updateTimerDisplay(boolean reset) {
-        // TODO implement
+        if (reset)
+            env.ui.setCountdown(60000,false);
+        else if(System.currentTimeMillis()<=10000)
+            env.ui.setCountdown(System.currentTimeMillis(),true);
+        else
+            env.ui.setCountdown(System.currentTimeMillis(),false);
     }
 
     /**
      * Returns all the cards from the table to the deck.
      */
     private void removeAllCardsFromTable() {
-        // TODO implement
+        for(int i = 0; i < table.slotToCard.length; i++)
+            if(table.slotToCard[i] != null) {
+                deck.add(table.slotToCard[i]);
+                table.removeCard(i);
+            }
     }
 
     /**
