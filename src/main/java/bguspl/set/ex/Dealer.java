@@ -46,7 +46,7 @@ public class Dealer implements Runnable {
         this.table = table;
         this.players = players;
         deck = IntStream.range(0, env.config.deckSize).boxed().collect(Collectors.toList());
-
+        reshuffleTime = 60000;
     }
 
     /**
@@ -76,15 +76,15 @@ public class Dealer implements Runnable {
      */
     private void timerLoop() {
 
-        while (!terminate && System.currentTimeMillis() < reshuffleTime) {
+        while (!terminate && System.currentTimeMillis()-startTime < reshuffleTime) {
             sleepUntilWokenOrTimeout();
             updateTimerDisplay(false);
-            tokensValidation();
+            removeCardsFromTable();
             try {
                 placeCardsOnTable();
             } catch (Exception e) {
             }
-            removeCardsFromTable();
+            tokensValidation();
 
         }
     }
@@ -97,9 +97,13 @@ public class Dealer implements Runnable {
                     p.point();
                     updateTimerDisplay(true);
                 } else {
-                    //p.penalty();
+                    p.penalty();
                 }
             }
+        }
+        try {
+            placeCardsOnTable();
+        } catch (Exception e) {
         }
     }
 

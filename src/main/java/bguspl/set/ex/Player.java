@@ -14,6 +14,7 @@ import java.util.Scanner;
  */
 public class Player implements Runnable {
     private List<Integer> tokenToSlots;
+    private boolean changeAfterPenalty;
     /**
      * The game environment object.
      */
@@ -69,6 +70,7 @@ public class Player implements Runnable {
         this.id = id;
         this.human = human;
         tokenToSlots = new ArrayList<>();
+        changeAfterPenalty = false;
     }
 
     public List<Integer> tokenToSlots(){
@@ -151,8 +153,9 @@ public class Player implements Runnable {
     /**
      * Penalize a player and perform other related actions.
      */
-    public void penalty() throws InterruptedException {
+    public void penalty() {
 //        Thread.sleep(30000);
+        env.ui.setFreeze(this.id,System.currentTimeMillis());
         //TODO show timer on screen near player's name
     }
 
