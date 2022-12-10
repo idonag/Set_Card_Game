@@ -4,7 +4,6 @@ import bguspl.set.Env;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 /**
  * This class manages the players' threads and data
@@ -13,8 +12,10 @@ import java.util.Scanner;
  * @inv score >= 0
  */
 public class Player implements Runnable {
-    private List<Integer> tokenToSlots;
+    private List<Integer> playerTokens;
     private boolean changeAfterPenalty;
+
+
     /**
      * The game environment object.
      */
@@ -69,12 +70,13 @@ public class Player implements Runnable {
         this.table = table;
         this.id = id;
         this.human = human;
-        tokenToSlots = new ArrayList<>();
-        changeAfterPenalty = false;
+        playerTokens = new ArrayList<>();
+        changeAfterPenalty = true;
+
     }
 
     public List<Integer> tokenToSlots(){
-        return tokenToSlots;
+        return playerTokens;
     }
     /**
      * The main player thread of each player starts here (main loop for the player thread).
@@ -125,14 +127,17 @@ public class Player implements Runnable {
      * @param slot - the slot corresponding to the key pressed.
      */
     public void keyPressed(int slot) {
-        if (tokenToSlots.contains(slot)){
-            tokenToSlots.remove((Integer) slot);
+        if (playerTokens.contains(slot)){
+            playerTokens.remove((Integer) slot);
             table.removeToken(this.id,slot);
+            changeAfterPenalty=true;
+
         }
         else {
-            if (tokenToSlots.size() < 3) {
+            if (playerTokens.size() < 3) {
                 table.placeToken(this.id, slot);
-                tokenToSlots.add(slot);
+                playerTokens.add(slot);
+
             }
         }
     }
@@ -153,9 +158,17 @@ public class Player implements Runnable {
     /**
      * Penalize a player and perform other related actions.
      */
+    //TODO: how to prevent player from doing any action while being freezed
     public void penalty() {
 //        Thread.sleep(30000);
-        env.ui.setFreeze(this.id,System.currentTimeMillis());
+        if(changeAfterPenalty) {
+            long currentPenalty = System.currentTimeMillis();
+            while (System.currentTimeMillis() - currentPenalty < 4000)
+                env.ui.setFreeze(this.id, 4000-(System.currentTimeMillis() - currentPenalty));
+            env.ui.setFreeze(this.id, 0);
+        }
+
+        changeAfterPenalty=false;
         //TODO show timer on screen near player's name
     }
 
@@ -164,9 +177,9 @@ public class Player implements Runnable {
     }
 
     public void clearTokens() {
-        for (int i = 0; i < tokenToSlots.size(); i ++)
-            table.removeToken(this.id,tokenToSlots.get(i));
-        tokenToSlots.clear();
+        for (int i = 0; i < playerTokens.size(); i ++)
+            table.removeToken(this.id, playerTokens.get(i));
+        playerTokens.clear();
 
     }
 }

@@ -2,10 +2,7 @@ package bguspl.set.ex;
 
 import bguspl.set.Env;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -41,12 +38,16 @@ public class Dealer implements Runnable {
      */
     private long reshuffleTime = Long.MAX_VALUE;
 
+
+
+
     public Dealer(Env env, Table table, Player[] players) {
         this.env = env;
         this.table = table;
         this.players = players;
         deck = IntStream.range(0, env.config.deckSize).boxed().collect(Collectors.toList());
         reshuffleTime = 60000;
+
     }
 
     /**
@@ -64,6 +65,7 @@ public class Dealer implements Runnable {
             }
             startTime = System.currentTimeMillis();
             timerLoop();
+            Arrays.stream(players).forEach(Player::clearTokens);
             updateTimerDisplay(false);
             removeAllCardsFromTable();
         }
@@ -96,6 +98,7 @@ public class Dealer implements Runnable {
                     removeCardsBySlots(p.tokenToSlots());
                     p.point();
                     updateTimerDisplay(true);
+                    Arrays.stream(players).forEach(Player::clearTokens);
                 } else {
                     p.penalty();
                 }
@@ -106,6 +109,7 @@ public class Dealer implements Runnable {
         } catch (Exception e) {
         }
     }
+
 
 
     /**
@@ -131,6 +135,8 @@ public class Dealer implements Runnable {
     //TODO handle the case when a player chooses a legal set
     private void removeCardsFromTable() {
         List<Integer> currentSlots = Arrays.asList(table.slotToCard);
+        while (currentSlots.remove(null)) {
+        }
         if(env.util.findSets(currentSlots,1).size() == 0){
             removeAllCardsFromTable();
         }
@@ -161,6 +167,7 @@ public class Dealer implements Runnable {
      */
     private void sleepUntilWokenOrTimeout() {
         // TODO implement
+        //wait()
     }
 
     /**
@@ -205,4 +212,7 @@ public class Dealer implements Runnable {
         for (int i = 0; i < slots.size(); i ++)
             table.removeCard(slots.get(i));
     }
+
+
+
 }

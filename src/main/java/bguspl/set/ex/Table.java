@@ -29,6 +29,8 @@ public class Table {
      */
     protected final Integer[] cardToSlot; // slot per card (if any)
 
+
+
     /**
      * Constructor for testing.
      *
@@ -37,10 +39,10 @@ public class Table {
      * @param cardToSlot - mapping between a card and the slot it is in (null if none).
      */
     public Table(Env env, Integer[] slotToCard, Integer[] cardToSlot) {
-
         this.env = env;
         this.slotToCard = slotToCard;
         this.cardToSlot = cardToSlot;
+
     }
 
     /**
@@ -118,7 +120,13 @@ public class Table {
     //TODO check if we need synchronized here
     public void placeToken(int player, int slot) {
         env.ui.placeToken(player,slot);
+
     }
+
+
+
+    //return
+
 
     /**
      * Removes a token of a player from a grid slot.
@@ -130,6 +138,9 @@ public class Table {
         //if()
         //TODO return true if succeeded
         env.ui.removeToken(player,slot);
+
         return false;
     }
+
+
 }
