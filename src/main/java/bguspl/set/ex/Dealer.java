@@ -19,6 +19,7 @@ public class Dealer implements Runnable {
      */
     private final Env env;
 
+    private long startTime;
     /**
      * Game entities.
      */
@@ -45,6 +46,7 @@ public class Dealer implements Runnable {
         this.table = table;
         this.players = players;
         deck = IntStream.range(0, env.config.deckSize).boxed().collect(Collectors.toList());
+
     }
 
     /**
@@ -60,6 +62,7 @@ public class Dealer implements Runnable {
             catch (Exception e){
                 System.out.println(e);
             }
+            startTime = System.currentTimeMillis();
             timerLoop();
             updateTimerDisplay(false);
             removeAllCardsFromTable();
@@ -72,6 +75,7 @@ public class Dealer implements Runnable {
      * The inner loop of the dealer thread that runs as long as the countdown did not time out.
      */
     private void timerLoop() {
+
         while (!terminate && System.currentTimeMillis() < reshuffleTime) {
             sleepUntilWokenOrTimeout();
             updateTimerDisplay(false);
@@ -80,9 +84,27 @@ public class Dealer implements Runnable {
                 placeCardsOnTable();
             }
             catch(Exception e){}
+            for (Player p : players) {
+                    if (p.tokenToSlots().size() == 3) {
+                        if (isSet(p.tokenToSlots())) {
+                            removeCardsBySlots(p.tokenToSlots());
+                            p.point();
+                            updateTimerDisplay(true);
+                        }
+                        else {
+                            //p.penalty();
+                        }
+                    }
+                }
+            try {
+                placeCardsOnTable();
+            }
+            catch (Exception e){
+            }
+            }
 
         }
-    }
+
 
     /**
      * Called when the game should be terminated due to an external event.
@@ -104,6 +126,7 @@ public class Dealer implements Runnable {
      * Checks if any cards should be removed from the table and returns them to the deck.
      */
     //TODO synchronized this method from players
+    //TODO handle the case when a player chooses a legal set
     private void removeCardsFromTable() {
         List<Integer> currentSlots = Arrays.asList(table.slotToCard);
         if(env.util.findSets(currentSlots,1).size() == 0){
@@ -143,12 +166,15 @@ public class Dealer implements Runnable {
      * Reset and/or update the countdown and the countdown display.
      */
     private void updateTimerDisplay(boolean reset) {
-        if (reset)
-            env.ui.setCountdown(60000,false);
-        else if(System.currentTimeMillis()<=10000)
-            env.ui.setCountdown(System.currentTimeMillis(),true);
-        else
-            env.ui.setCountdown(System.currentTimeMillis(),false);
+        long elapsed =60000- (System.currentTimeMillis()-startTime);
+        boolean warn = false;
+        if (reset) {
+            elapsed = 60000;
+            startTime = System.currentTimeMillis();
+        }
+        else if(elapsed<=10000)
+            warn = true;
+        env.ui.setCountdown(elapsed,warn);
     }
 
     /**
@@ -167,5 +193,18 @@ public class Dealer implements Runnable {
      */
     private void announceWinners() {
         // TODO implement
+    }
+    private boolean isSet(List<Integer> setToTest) {
+
+            int[] setToTestArray = new int[3];
+            for (int i = 0; i < setToTest.size(); i++)
+                setToTestArray[i] = table.slotToCard[setToTest.get(i)];
+
+
+        return env.util.testSet(setToTestArray);
+    }
+    private void removeCardsBySlots(List<Integer> slots){
+        for (int i = 0; i < slots.size(); i ++)
+            table.removeCard(slots.get(i));
     }
 }

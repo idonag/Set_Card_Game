@@ -2,6 +2,10 @@ package bguspl.set.ex;
 
 import bguspl.set.Env;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
+
 /**
  * This class manages the players' threads and data
  *
@@ -9,7 +13,7 @@ import bguspl.set.Env;
  * @inv score >= 0
  */
 public class Player implements Runnable {
-
+    private List<Integer> tokenToSlots;
     /**
      * The game environment object.
      */
@@ -64,8 +68,12 @@ public class Player implements Runnable {
         this.table = table;
         this.id = id;
         this.human = human;
+        tokenToSlots = new ArrayList<>();
     }
 
+    public List<Integer> tokenToSlots(){
+        return tokenToSlots;
+    }
     /**
      * The main player thread of each player starts here (main loop for the player thread).
      */
@@ -77,6 +85,7 @@ public class Player implements Runnable {
 
         while (!terminate) {
             // TODO implement main player loop
+
         }
         if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
         System.out.printf("Info: Thread %s terminated.%n", Thread.currentThread().getName());
@@ -114,7 +123,17 @@ public class Player implements Runnable {
      * @param slot - the slot corresponding to the key pressed.
      */
     public void keyPressed(int slot) {
-        // TODO implement
+        if (tokenToSlots.contains(slot)){
+            tokenToSlots.remove((Integer) slot);
+            table.removeToken(this.id,slot);
+        }
+        else {
+            if (tokenToSlots.size() < 3) {
+                table.placeToken(this.id, slot);
+                tokenToSlots.add(slot);
+            }
+        }
+
     }
 
     /**
@@ -125,7 +144,9 @@ public class Player implements Runnable {
      */
     public void point() {
         // TODO implement
-
+        for (int slot : tokenToSlots)
+            table.removeToken(this.id,slot);
+        tokenToSlots.clear();
         int ignored = table.countCards(); // this part is just for demonstration in the unit tests
         env.ui.setScore(id, ++score);
     }
@@ -133,11 +154,19 @@ public class Player implements Runnable {
     /**
      * Penalize a player and perform other related actions.
      */
-    public void penalty() {
-        // TODO implement
+    public void penalty() throws InterruptedException {
+//        Thread.sleep(30000);
+        //TODO show timer on screen near player's name
     }
 
     public int getScore() {
         return score;
+    }
+
+    public void clearTokens() {
+        for (int i = 0; i < tokenToSlots.size(); i ++)
+            table.removeToken(this.id,tokenToSlots.get(i));
+        tokenToSlots.clear();
+
     }
 }
