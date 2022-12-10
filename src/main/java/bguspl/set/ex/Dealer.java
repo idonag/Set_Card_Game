@@ -79,31 +79,29 @@ public class Dealer implements Runnable {
         while (!terminate && System.currentTimeMillis() < reshuffleTime) {
             sleepUntilWokenOrTimeout();
             updateTimerDisplay(false);
+            tokensValidation();
+            try {
+                placeCardsOnTable();
+            } catch (Exception e) {
+            }
             removeCardsFromTable();
-            try {
-                placeCardsOnTable();
-            }
-            catch(Exception e){}
-            for (Player p : players) {
-                    if (p.tokenToSlots().size() == 3) {
-                        if (isSet(p.tokenToSlots())) {
-                            removeCardsBySlots(p.tokenToSlots());
-                            p.point();
-                            updateTimerDisplay(true);
-                        }
-                        else {
-                            //p.penalty();
-                        }
-                    }
-                }
-            try {
-                placeCardsOnTable();
-            }
-            catch (Exception e){
-            }
-            }
 
         }
+    }
+
+    private void tokensValidation() {
+        for (Player p : players) {
+            if (p.tokenToSlots().size() == 3) {
+                if (isSet(p.tokenToSlots())) {
+                    removeCardsBySlots(p.tokenToSlots());
+                    p.point();
+                    updateTimerDisplay(true);
+                } else {
+                    //p.penalty();
+                }
+            }
+        }
+    }
 
 
     /**
@@ -142,7 +140,6 @@ public class Dealer implements Runnable {
         for (int i = 0 ; i < 12 ;i++)
             slotNumbers.add(i);
         while (!slotNumbers.isEmpty()){
-
             Random rand = new Random();
             int index = rand.nextInt(slotNumbers.size());
             Integer j = slotNumbers.get(index);
@@ -195,12 +192,9 @@ public class Dealer implements Runnable {
         // TODO implement
     }
     private boolean isSet(List<Integer> setToTest) {
-
             int[] setToTestArray = new int[3];
             for (int i = 0; i < setToTest.size(); i++)
                 setToTestArray[i] = table.slotToCard[setToTest.get(i)];
-
-
         return env.util.testSet(setToTestArray);
     }
     private void removeCardsBySlots(List<Integer> slots){

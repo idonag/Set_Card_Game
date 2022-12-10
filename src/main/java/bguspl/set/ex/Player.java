@@ -133,7 +133,6 @@ public class Player implements Runnable {
                 tokenToSlots.add(slot);
             }
         }
-
     }
 
     /**
@@ -144,9 +143,7 @@ public class Player implements Runnable {
      */
     public void point() {
         // TODO implement
-        for (int slot : tokenToSlots)
-            table.removeToken(this.id,slot);
-        tokenToSlots.clear();
+        clearTokens();
         int ignored = table.countCards(); // this part is just for demonstration in the unit tests
         env.ui.setScore(id, ++score);
     }
