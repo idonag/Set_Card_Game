@@ -3,6 +3,8 @@ package bguspl.set.ex;
 import bguspl.set.Env;
 
 import java.util.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -38,8 +40,9 @@ public class Dealer implements Runnable {
      */
     private long reshuffleTime = Long.MAX_VALUE;
 
+    private BlockingQueue<Player> playersToCheck;
 
-
+    private Dictionary<Player,Long> playerToPenaltyTime;
 
     public Dealer(Env env, Table table, Player[] players) {
         this.env = env;
@@ -47,6 +50,8 @@ public class Dealer implements Runnable {
         this.players = players;
         deck = IntStream.range(0, env.config.deckSize).boxed().collect(Collectors.toList());
         reshuffleTime = 60000;
+        playersToCheck = new LinkedBlockingQueue<>();
+        playerToPenaltyTime = new Hashtable<>();
 
     }
 
@@ -56,13 +61,15 @@ public class Dealer implements Runnable {
     @Override
     public void run() {
         System.out.printf("Info: Thread %s starting.%n", Thread.currentThread().getName());
+        for (Player p : this.players) {
+            playerToPenaltyTime.put(p, (long) 0);
+        }
+        for (Player p :players){
+            Thread t = new Thread(p,p.id+"");
+            t.start();
+        }
         while (!shouldFinish()) {
-            try {
-                placeCardsOnTable();
-            }
-            catch (Exception e){
-                System.out.println(e);
-            }
+            placeCardsOnTable();
             startTime = System.currentTimeMillis();
             timerLoop();
             Arrays.stream(players).forEach(Player::clearTokens);
@@ -77,38 +84,55 @@ public class Dealer implements Runnable {
      * The inner loop of the dealer thread that runs as long as the countdown did not time out.
      */
     private void timerLoop() {
-
         while (!terminate && System.currentTimeMillis()-startTime < reshuffleTime) {
-            sleepUntilWokenOrTimeout();
+            try{sleepUntilWokenOrTimeout();}
+            catch (Exception e){throw new IllegalArgumentException(e.getMessage());}
             updateTimerDisplay(false);
             removeCardsFromTable();
+            placeCardsOnTable();
+            try {
+               tokensValidation();
+            }
+            catch (Exception e){throw new IllegalArgumentException(e.getMessage());}
+            for (Player p : players){
+                if (playerToPenaltyTime.get(p) > System.currentTimeMillis())
+                    env.ui.setFreeze(p.id,playerToPenaltyTime.get(p)-System.currentTimeMillis());
+                else {
+                    env.ui.setFreeze(p.id,0);
+                    synchronized(p){
+                        p.notify();
+                    }
+                }
+            }
+        }
+    }
+
+    private void tokensValidation() throws InterruptedException {
+        if (playersToCheck.size()>0) {
+            Player p = playersToCheck.take();
+            if (isSet(p.tokenToSlots())) {
+                removeCardsBySlots(p.tokenToSlots());
+                p.point();
+                updateTimerDisplay(true);
+                playerToPenaltyTime.put(p,System.currentTimeMillis() + 1000);
+
+//                Arrays.stream(players).forEach(Player::clearTokens);
+            } else {
+//                p.penalty();
+                playerToPenaltyTime.put(p,System.currentTimeMillis() + 3000);
+
+            }
             try {
                 placeCardsOnTable();
             } catch (Exception e) {
             }
-            tokensValidation();
-
-        }
-    }
-
-    private void tokensValidation() {
-        for (Player p : players) {
-            if (p.tokenToSlots().size() == 3) {
-                if (isSet(p.tokenToSlots())) {
-                    removeCardsBySlots(p.tokenToSlots());
-                    p.point();
-                    updateTimerDisplay(true);
-                    Arrays.stream(players).forEach(Player::clearTokens);
-                } else {
-                    p.penalty();
-                }
+            synchronized (p) {
+                p.wait();
             }
         }
-        try {
-            placeCardsOnTable();
-        } catch (Exception e) {
-        }
     }
+
+
 
 
 
@@ -129,7 +153,7 @@ public class Dealer implements Runnable {
     }
 
     /**
-     * Checks if any cards should be removed from the table and returns them to the deck.
+     * Checks if any cards should be removed from the table
      */
     //TODO synchronized this method from players
     //TODO handle the case when a player chooses a legal set
@@ -145,7 +169,7 @@ public class Dealer implements Runnable {
     /**
      * Check if any cards can be removed from the deck and placed on the table.
      */
-    private void placeCardsOnTable() throws InterruptedException {
+    private void placeCardsOnTable(){
         List<Integer> slotNumbers = new ArrayList<>();
         for (int i = 0 ; i < 12 ;i++)
             slotNumbers.add(i);
@@ -155,7 +179,6 @@ public class Dealer implements Runnable {
             Integer j = slotNumbers.get(index);
             slotNumbers.remove(j);
             if(table.slotToCard[j]==null) {
-                Thread.sleep(200);
                 Random random = new Random();
                 table.placeCard(deck.remove(random.nextInt(deck.size())),j);
             }
@@ -165,9 +188,11 @@ public class Dealer implements Runnable {
     /**
      * Sleep for a fixed amount of time or until the thread is awakened for some purpose.
      */
-    private void sleepUntilWokenOrTimeout() {
+    private  void  sleepUntilWokenOrTimeout() throws InterruptedException {
         // TODO implement
-        //wait()
+        synchronized (this) {
+            this.wait(250);
+        }
     }
 
     /**
@@ -212,7 +237,9 @@ public class Dealer implements Runnable {
         for (int i = 0; i < slots.size(); i ++)
             table.removeCard(slots.get(i));
     }
-
+    public void addToPlayersQueue(Player p){
+        playersToCheck.add(p);
+    }
 
 
 }

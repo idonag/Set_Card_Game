@@ -3,7 +3,10 @@ package bguspl.set.ex;
 import bguspl.set.Env;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * This class manages the players' threads and data
@@ -12,6 +15,7 @@ import java.util.List;
  * @inv score >= 0
  */
 public class Player implements Runnable {
+    private BlockingQueue<Integer> playerPresses;
     private List<Integer> playerTokens;
     private boolean changeAfterPenalty;
 
@@ -56,6 +60,7 @@ public class Player implements Runnable {
      */
     private int score;
 
+    Dealer dealer;
     /**
      * The class constructor.
      *
@@ -70,8 +75,10 @@ public class Player implements Runnable {
         this.table = table;
         this.id = id;
         this.human = human;
-        playerTokens = new ArrayList<>();
+        playerTokens = new LinkedList<>();
+        playerPresses = new LinkedBlockingQueue<>();
         changeAfterPenalty = true;
+        this.dealer = dealer;
 
     }
 
@@ -88,7 +95,24 @@ public class Player implements Runnable {
         if (!human) createArtificialIntelligence();
 
         while (!terminate) {
-            // TODO implement main player loop
+            try {
+                step();
+            }
+            catch (Exception e){}
+            if(playerTokens.size() == 3) {
+                dealer.addToPlayersQueue(this);
+                synchronized (dealer) {
+                    dealer.notify();
+                }
+                try {
+                    synchronized (this) {
+                        wait();
+                    }
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+            }
 
         }
         if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
@@ -127,17 +151,19 @@ public class Player implements Runnable {
      * @param slot - the slot corresponding to the key pressed.
      */
     public void keyPressed(int slot) {
+        playerPresses.add(slot);
+    }
+    public void step() throws InterruptedException {
+        int slot = playerPresses.take();
         if (playerTokens.contains(slot)){
             playerTokens.remove((Integer) slot);
             table.removeToken(this.id,slot);
             changeAfterPenalty=true;
-
         }
         else {
             if (playerTokens.size() < 3) {
                 table.placeToken(this.id, slot);
                 playerTokens.add(slot);
-
             }
         }
     }
