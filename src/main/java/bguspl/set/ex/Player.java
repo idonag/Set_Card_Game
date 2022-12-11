@@ -99,14 +99,14 @@ public class Player implements Runnable {
                 step();
             }
             catch (Exception e){}
-            if(playerTokens.size() == 3) {
+            if(playerTokens.size() == 3 && changeAfterPenalty ) {
                 dealer.addToPlayersQueue(this);
                 synchronized (dealer) {
-                    dealer.notify();
+                    dealer.notifyAll();
                 }
                 try {
                     synchronized (this) {
-                        wait();
+                        this.wait();
                     }
                     } catch (InterruptedException e) {
                         e.printStackTrace();
@@ -176,7 +176,7 @@ public class Player implements Runnable {
      */
     public void point() {
         // TODO implement
-        clearTokens();
+
         int ignored = table.countCards(); // this part is just for demonstration in the unit tests
         env.ui.setScore(id, ++score);
     }
@@ -186,26 +186,29 @@ public class Player implements Runnable {
      */
     //TODO: how to prevent player from doing any action while being freezed
     public void penalty() {
-//        Thread.sleep(30000);
-        if(changeAfterPenalty) {
-            long currentPenalty = System.currentTimeMillis();
-            while (System.currentTimeMillis() - currentPenalty < 4000)
-                env.ui.setFreeze(this.id, 4000-(System.currentTimeMillis() - currentPenalty));
-            env.ui.setFreeze(this.id, 0);
+        changeAfterPenalty=false;
+
         }
 
-        changeAfterPenalty=false;
+
         //TODO show timer on screen near player's name
-    }
+
 
     public int getScore() {
         return score;
     }
 
-    public void clearTokens() {
-        for (int i = 0; i < playerTokens.size(); i ++)
-            table.removeToken(this.id, playerTokens.get(i));
-        playerTokens.clear();
+    public void clearTokens(List<Integer> slots) {
+        for (Integer token:playerTokens) {
+            for (Integer j:slots) {
+                if(token.equals(j)) {
+                    table.removeToken(this.id, token);
+                    System.out.println("1");
+                    playerTokens.remove(token);
+                    System.out.println("2");
+                }
+            }
+        }
 
     }
 }

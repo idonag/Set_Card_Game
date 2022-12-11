@@ -60,6 +60,7 @@ public class Dealer implements Runnable {
      */
     @Override
     public void run() {
+        placeCardsOnTable();
         System.out.printf("Info: Thread %s starting.%n", Thread.currentThread().getName());
         for (Player p : this.players) {
             playerToPenaltyTime.put(p, (long) 0);
@@ -72,7 +73,7 @@ public class Dealer implements Runnable {
             placeCardsOnTable();
             startTime = System.currentTimeMillis();
             timerLoop();
-            Arrays.stream(players).forEach(Player::clearTokens);
+            //Arrays.stream(players).forEach(Player::clearTokens);
             updateTimerDisplay(false);
             removeAllCardsFromTable();
         }
@@ -87,19 +88,28 @@ public class Dealer implements Runnable {
         while (!terminate && System.currentTimeMillis()-startTime < reshuffleTime) {
             try{sleepUntilWokenOrTimeout();}
             catch (Exception e){throw new IllegalArgumentException(e.getMessage());}
+          //  System.out.println("dealer woke up");
             updateTimerDisplay(false);
+          //  System.out.println("dealer remove cards");
             removeCardsFromTable();
+          //  System.out.println("dealer place cards");
             placeCardsOnTable();
             try {
+
                tokensValidation();
+               // System.out.println("dealer validatis cards");
             }
             catch (Exception e){throw new IllegalArgumentException(e.getMessage());}
             for (Player p : players){
+                //System.out.println("players loop");
+
                 if (playerToPenaltyTime.get(p) > System.currentTimeMillis())
                     env.ui.setFreeze(p.id,playerToPenaltyTime.get(p)-System.currentTimeMillis());
                 else {
+                    //System.out.println("before sync");
                     env.ui.setFreeze(p.id,0);
                     synchronized(p){
+                     //   System.out.println("before notify player");
                         p.notify();
                     }
                 }
@@ -108,26 +118,25 @@ public class Dealer implements Runnable {
     }
 
     private void tokensValidation() throws InterruptedException {
+       // System.out.println("enters token val");
         if (playersToCheck.size()>0) {
             Player p = playersToCheck.take();
             if (isSet(p.tokenToSlots())) {
                 removeCardsBySlots(p.tokenToSlots());
                 p.point();
+                System.out.println(p.tokenToSlots());
                 updateTimerDisplay(true);
                 playerToPenaltyTime.put(p,System.currentTimeMillis() + 1000);
 
-//                Arrays.stream(players).forEach(Player::clearTokens);
             } else {
-//                p.penalty();
+                p.penalty();
                 playerToPenaltyTime.put(p,System.currentTimeMillis() + 3000);
 
             }
             try {
                 placeCardsOnTable();
             } catch (Exception e) {
-            }
-            synchronized (p) {
-                p.wait();
+                throw e;
             }
         }
     }
@@ -191,7 +200,7 @@ public class Dealer implements Runnable {
     private  void  sleepUntilWokenOrTimeout() throws InterruptedException {
         // TODO implement
         synchronized (this) {
-            this.wait(250);
+            this.wait(500);
         }
     }
 
@@ -234,8 +243,29 @@ public class Dealer implements Runnable {
         return env.util.testSet(setToTestArray);
     }
     private void removeCardsBySlots(List<Integer> slots){
-        for (int i = 0; i < slots.size(); i ++)
+
+
+        for (Player p: players) {
+            for (Integer j:p.tokenToSlots()) {
+                if(slots.contains(j)) {
+                    table.removeToken(p.id,j);
+                }
+            }
+        }
+
+        for (int i = 0; i < slots.size(); i ++) {
+
             table.removeCard(slots.get(i));
+        }
+
+        System.out.println(players[0].tokenToSlots().toString());
+        System.out.println(players[1].tokenToSlots().toString());
+
+        for (Player p:players) {
+            p.clearTokens(slots);
+        }
+
+
     }
     public void addToPlayersQueue(Player p){
         playersToCheck.add(p);
