@@ -99,7 +99,9 @@ public class Dealer implements Runnable {
                tokensValidation();
                // System.out.println("dealer validatis cards");
             }
-            catch (Exception e){throw new IllegalArgumentException(e.getMessage());}
+            catch (InterruptedException e) {
+                System.out.println(e.getMessage());
+            }
             for (Player p : players){
                 //System.out.println("players loop");
 
@@ -122,7 +124,11 @@ public class Dealer implements Runnable {
         if (playersToCheck.size()>0) {
             Player p = playersToCheck.take();
             if (isSet(p.tokenToSlots())) {
-                removeCardsBySlots(p.tokenToSlots());
+                Vector<Integer> slotsToRemove = new Vector<>();
+                for (int i = 0; i < p.tokenToSlots().size();i++){
+                    slotsToRemove.add(p.tokenToSlots().get(i));
+                }
+                removeCardsBySlots(slotsToRemove);
                 p.point();
                 System.out.println(p.tokenToSlots());
                 updateTimerDisplay(true);
@@ -168,8 +174,9 @@ public class Dealer implements Runnable {
     //TODO handle the case when a player chooses a legal set
     private void removeCardsFromTable() {
         List<Integer> currentSlots = Arrays.asList(table.slotToCard);
-        while (currentSlots.remove(null)) {
-        }
+        System.out.println(currentSlots);
+        currentSlots.removeAll(Collections.singleton(null));
+        System.out.println(currentSlots);
         if(env.util.findSets(currentSlots,1).size() == 0){
             removeAllCardsFromTable();
         }
@@ -179,18 +186,23 @@ public class Dealer implements Runnable {
      * Check if any cards can be removed from the deck and placed on the table.
      */
     private void placeCardsOnTable(){
-        List<Integer> slotNumbers = new ArrayList<>();
-        for (int i = 0 ; i < 12 ;i++)
-            slotNumbers.add(i);
-        while (!slotNumbers.isEmpty()){
-            Random rand = new Random();
-            int index = rand.nextInt(slotNumbers.size());
-            Integer j = slotNumbers.get(index);
-            slotNumbers.remove(j);
-            if(table.slotToCard[j]==null) {
-                Random random = new Random();
-                table.placeCard(deck.remove(random.nextInt(deck.size())),j);
-            }
+            List<Integer> slotNumbers = new ArrayList<>();
+            for (int i = 0; i < 12; i++)
+                slotNumbers.add(i);
+            while (!slotNumbers.isEmpty()) {
+                Random rand = new Random();
+                int index = rand.nextInt(slotNumbers.size());
+                Integer j = slotNumbers.get(index);
+                slotNumbers.remove(j);
+                if (table.slotToCard[j] == null) {
+                    Random random = new Random();
+                    //deck.remove(random.nextInt(deck.size())),j
+                    if (!deck.isEmpty()) {
+                        System.out.println("cards in deck:"+deck.size());
+                        table.placeCard(deck.remove(0), j);
+                    }
+                }
+
         }
     }
 
@@ -200,7 +212,7 @@ public class Dealer implements Runnable {
     private  void  sleepUntilWokenOrTimeout() throws InterruptedException {
         // TODO implement
         synchronized (this) {
-            this.wait(500);
+            this.wait(50);
         }
     }
 
@@ -242,9 +254,7 @@ public class Dealer implements Runnable {
                 setToTestArray[i] = table.slotToCard[setToTest.get(i)];
         return env.util.testSet(setToTestArray);
     }
-    private void removeCardsBySlots(List<Integer> slots){
-
-
+    private void removeCardsBySlots(Vector<Integer> slots){
         for (Player p: players) {
             for (Integer j:p.tokenToSlots()) {
                 if(slots.contains(j)) {
@@ -252,20 +262,16 @@ public class Dealer implements Runnable {
                 }
             }
         }
-
         for (int i = 0; i < slots.size(); i ++) {
-
             table.removeCard(slots.get(i));
         }
-
         System.out.println(players[0].tokenToSlots().toString());
         System.out.println(players[1].tokenToSlots().toString());
 
         for (Player p:players) {
-            p.clearTokens(slots);
+            for (int s : slots)
+                p.clearTokens(s);
         }
-
-
     }
     public void addToPlayersQueue(Player p){
         playersToCheck.add(p);
