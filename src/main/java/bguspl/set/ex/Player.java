@@ -163,6 +163,7 @@ public class Player implements Runnable {
         }
         else {
             if (playerTokens.size() < 3) {
+                System.out.println(this.id+ " place token");
                 table.placeToken(this.id, slot);
                 playerTokens.add(slot);
             }
@@ -202,9 +203,9 @@ public class Player implements Runnable {
     public void clearTokens(int slot) {
         if (tokenToSlots().contains(slot)) {
 //                  table.removeToken(this.id, tokenToSlots().get(i));
-                    System.out.println("1");
+
                     playerTokens.remove((Integer) slot);
-                    System.out.println("2");
+
         }
 
     }

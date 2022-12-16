@@ -116,7 +116,14 @@ public class Dealer implements Runnable {
                     }
                 }
             }
+            terminate = zeroSetsLeft();
         }
+    }
+
+    private boolean zeroSetsLeft() {
+        List<Integer> currentSlots = Arrays.asList(table.slotToCard);
+        currentSlots = currentSlots.parallelStream().filter(Objects::nonNull).collect(Collectors.toList()); //remove null values
+        return env.util.findSets(deck, 1).size() == 0 && env.util.findSets(currentSlots,1).size() == 0 ;
     }
 
     private void tokensValidation() throws InterruptedException {
@@ -125,9 +132,7 @@ public class Dealer implements Runnable {
             Player p = playersToCheck.take();
             if (isSet(p.tokenToSlots())) {
                 Vector<Integer> slotsToRemove = new Vector<>();
-                for (int i = 0; i < p.tokenToSlots().size();i++){
-                    slotsToRemove.add(p.tokenToSlots().get(i));
-                }
+                slotsToRemove.addAll(p.tokenToSlots());
                 removeCardsBySlots(slotsToRemove);
                 p.point();
                 System.out.println(p.tokenToSlots());
@@ -164,7 +169,7 @@ public class Dealer implements Runnable {
      * @return true iff the game should be finished.
      */
     private boolean shouldFinish() {
-        return terminate || env.util.findSets(deck, 1).size() == 0;
+        return terminate || env.util.findSets(deck, 1).size() == 0 ;
     }
 
     /**
@@ -174,9 +179,7 @@ public class Dealer implements Runnable {
     //TODO handle the case when a player chooses a legal set
     private void removeCardsFromTable() {
         List<Integer> currentSlots = Arrays.asList(table.slotToCard);
-        System.out.println(currentSlots);
-        currentSlots.removeAll(Collections.singleton(null));
-        System.out.println(currentSlots);
+         currentSlots = currentSlots.parallelStream().filter(Objects::nonNull).collect(Collectors.toList()); //remove null values
         if(env.util.findSets(currentSlots,1).size() == 0){
             removeAllCardsFromTable();
         }
@@ -246,7 +249,23 @@ public class Dealer implements Runnable {
      * Check who is/are the winner/s and displays them.
      */
     private void announceWinners() {
-        // TODO implement
+        int maxPoint = 0;
+
+        for (Player p : players) {
+            if (p.getScore() > maxPoint)
+                maxPoint = p.getScore();
+        }
+        List<Integer> winners = new LinkedList();
+        for (Player p : players){
+            if (p.getScore() == maxPoint)
+                winners.add(p.id);
+        }
+        int[] winnersArray = new int[winners.size()];
+        for (int i = 0; i < winnersArray.length;i++){
+            winnersArray[i] = winners.get(i);
+        }
+        env.ui.announceWinner(winnersArray);
+
     }
     private boolean isSet(List<Integer> setToTest) {
             int[] setToTestArray = new int[3];
@@ -255,6 +274,7 @@ public class Dealer implements Runnable {
         return env.util.testSet(setToTestArray);
     }
     private void removeCardsBySlots(Vector<Integer> slots){
+        System.out.println("remove card from slots: "+slots);
         for (Player p: players) {
             for (Integer j:p.tokenToSlots()) {
                 if(slots.contains(j)) {
