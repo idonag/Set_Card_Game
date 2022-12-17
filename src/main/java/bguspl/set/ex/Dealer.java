@@ -43,6 +43,7 @@ public class Dealer implements Runnable {
     private BlockingQueue<Player> playersToCheck;
 
     private Dictionary<Player,Long> playerToPenaltyTime;
+    private boolean placingCards;
 
     public Dealer(Env env, Table table, Player[] players) {
         this.env = env;
@@ -52,6 +53,7 @@ public class Dealer implements Runnable {
         reshuffleTime = 60000;
         playersToCheck = new LinkedBlockingQueue<>();
         playerToPenaltyTime = new Hashtable<>();
+        placingCards = true;
 
     }
 
@@ -60,17 +62,21 @@ public class Dealer implements Runnable {
      */
     @Override
     public void run() {
-        placeCardsOnTable();
+
         System.out.printf("Info: Thread %s starting.%n", Thread.currentThread().getName());
+        placeCardsOnTable();
         for (Player p : this.players) {
             playerToPenaltyTime.put(p, (long) 0);
         }
+
         for (Player p :players){
             Thread t = new Thread(p,p.id+"");
             t.start();
         }
         while (!shouldFinish()) {
+            placingCards = true;
             placeCardsOnTable();
+
             startTime = System.currentTimeMillis();
             timerLoop();
             //Arrays.stream(players).forEach(Player::clearTokens);
@@ -88,11 +94,7 @@ public class Dealer implements Runnable {
         while (!terminate && System.currentTimeMillis()-startTime < reshuffleTime) {
             try{sleepUntilWokenOrTimeout();}
             catch (Exception e){throw new IllegalArgumentException(e.getMessage());}
-          //  System.out.println("dealer woke up");
             updateTimerDisplay(false);
-          //  System.out.println("dealer remove cards");
-            removeCardsFromTable();
-          //  System.out.println("dealer place cards");
             placeCardsOnTable();
             try {
 
@@ -130,25 +132,26 @@ public class Dealer implements Runnable {
        // System.out.println("enters token val");
         if (playersToCheck.size()>0) {
             Player p = playersToCheck.take();
-            if (isSet(p.tokenToSlots())) {
-                Vector<Integer> slotsToRemove = new Vector<>();
-                slotsToRemove.addAll(p.tokenToSlots());
-                removeCardsBySlots(slotsToRemove);
-                p.point();
-                System.out.println(p.tokenToSlots());
-                updateTimerDisplay(true);
-                playerToPenaltyTime.put(p,System.currentTimeMillis() + 1000);
+            if(p.tokenToSlots().size() == 3) {
+                if (isSet(p.tokenToSlots())) {
+                    Vector<Integer> slotsToRemove = new Vector<>();
+                    slotsToRemove.addAll(p.tokenToSlots());
+                    removeCardsBySlots(slotsToRemove);
+                    p.point();
+                    updateTimerDisplay(true);
+                    playerToPenaltyTime.put(p, System.currentTimeMillis() + 1000);
 
-            } else {
-                p.penalty();
-                playerToPenaltyTime.put(p,System.currentTimeMillis() + 3000);
+                } else {
+                    p.penalty();
+                    playerToPenaltyTime.put(p, System.currentTimeMillis() + 3000);
+                }
+                try {
+                    placeCardsOnTable();
+                } catch (Exception e) {
+                    throw e;
+                }
+            }
 
-            }
-            try {
-                placeCardsOnTable();
-            } catch (Exception e) {
-                throw e;
-            }
         }
     }
 
@@ -160,7 +163,7 @@ public class Dealer implements Runnable {
      * Called when the game should be terminated due to an external event.
      */
     public void terminate() {
-        // TODO implement
+        terminate = true;
     }
 
     /**
@@ -172,18 +175,6 @@ public class Dealer implements Runnable {
         return terminate || env.util.findSets(deck, 1).size() == 0 ;
     }
 
-    /**
-     * Checks if any cards should be removed from the table
-     */
-    //TODO synchronized this method from players
-    //TODO handle the case when a player chooses a legal set
-    private void removeCardsFromTable() {
-        List<Integer> currentSlots = Arrays.asList(table.slotToCard);
-         currentSlots = currentSlots.parallelStream().filter(Objects::nonNull).collect(Collectors.toList()); //remove null values
-        if(env.util.findSets(currentSlots,1).size() == 0){
-            removeAllCardsFromTable();
-        }
-    }
 
     /**
      * Check if any cards can be removed from the deck and placed on the table.
@@ -201,12 +192,13 @@ public class Dealer implements Runnable {
                     Random random = new Random();
                     //deck.remove(random.nextInt(deck.size())),j
                     if (!deck.isEmpty()) {
-                        System.out.println("cards in deck:"+deck.size());
+
                         table.placeCard(deck.remove(0), j);
                     }
                 }
 
         }
+            placingCards = false;
     }
 
     /**
@@ -231,18 +223,27 @@ public class Dealer implements Runnable {
         }
         else if(elapsed<=10000)
             warn = true;
-        env.ui.setCountdown(elapsed,warn);
+
+        env.ui.setCountdown(Math.max(elapsed,0),warn);
     }
 
     /**
      * Returns all the cards from the table to the deck.
      */
     private void removeAllCardsFromTable() {
-        for(int i = 0; i < table.slotToCard.length; i++)
-            if(table.slotToCard[i] != null) {
+        placingCards = true;
+        for (Player p : players){
+            p.clearTokens(Arrays.asList(0,1,2,3,4,5,6,7,8,9,10,11));
+        }
+        for(int i = 0; i < table.slotToCard.length; i++) {
+            if (table.slotToCard[i] != null) {
                 deck.add(table.slotToCard[i]);
                 table.removeCard(i);
             }
+        }
+        placingCards = false;
+
+
     }
 
     /**
@@ -268,34 +269,28 @@ public class Dealer implements Runnable {
 
     }
     private boolean isSet(List<Integer> setToTest) {
-            int[] setToTestArray = new int[3];
-            for (int i = 0; i < setToTest.size(); i++)
-                setToTestArray[i] = table.slotToCard[setToTest.get(i)];
+        if(setToTest.size()!= 3)
+            return false;
+        int[] setToTestArray = new int[3];
+        for (int i = 0; i < setToTest.size(); i++)
+            setToTestArray[i] = table.slotToCard[setToTest.get(i)];
         return env.util.testSet(setToTestArray);
     }
     private void removeCardsBySlots(Vector<Integer> slots){
-        System.out.println("remove card from slots: "+slots);
-        for (Player p: players) {
-            for (Integer j:p.tokenToSlots()) {
-                if(slots.contains(j)) {
-                    table.removeToken(p.id,j);
-                }
-            }
-        }
         for (int i = 0; i < slots.size(); i ++) {
             table.removeCard(slots.get(i));
         }
-        System.out.println(players[0].tokenToSlots().toString());
-        System.out.println(players[1].tokenToSlots().toString());
-
         for (Player p:players) {
-            for (int s : slots)
-                p.clearTokens(s);
+            p.clearTokens(slots);
         }
     }
     public void addToPlayersQueue(Player p){
         playersToCheck.add(p);
     }
 
+
+    public boolean isPlacingCards() {
+        return placingCards;
+    }
 
 }

@@ -2,10 +2,7 @@ package bguspl.set.ex;
 
 import bguspl.set.Env;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Vector;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -61,7 +58,7 @@ public class Player implements Runnable {
      */
     private int score;
 
-    Dealer dealer;
+    final Dealer dealer;
     /**
      * The class constructor.
      *
@@ -129,7 +126,9 @@ public class Player implements Runnable {
         aiThread = new Thread(() -> {
             System.out.printf("Info: Thread %s starting.%n", Thread.currentThread().getName());
             while (!terminate) {
-                // TODO implement player key press simulator
+                Random random = new Random();
+                int slotChosen =random.nextInt(12);
+                keyPressed(slotChosen);
                 try {
                     synchronized (this) { wait(); }
                 } catch (InterruptedException ignored) {}
@@ -152,7 +151,9 @@ public class Player implements Runnable {
      * @param slot - the slot corresponding to the key pressed.
      */
     public void keyPressed(int slot) {
+        if(!dealer.isPlacingCards()){
             playerPresses.add(slot);
+        }
     }
     public void  step() throws InterruptedException {
         int slot = playerPresses.take();
@@ -163,9 +164,10 @@ public class Player implements Runnable {
         }
         else {
             if (playerTokens.size() < 3) {
-                System.out.println(this.id+ " place token");
-                table.placeToken(this.id, slot);
-                playerTokens.add(slot);
+                if (table.slotToCard[slot] != null) {
+                    table.placeToken(this.id, slot);
+                    playerTokens.add(slot);
+                }
             }
         }
     }
@@ -200,12 +202,13 @@ public class Player implements Runnable {
         return score;
     }
 
-    public void clearTokens(int slot) {
-        if (tokenToSlots().contains(slot)) {
+    public void clearTokens(List<Integer> slots) {
+        for(int slot:slots) {
+            if (tokenToSlots().contains(slot)) {
 //                  table.removeToken(this.id, tokenToSlots().get(i));
-
-                    playerTokens.remove((Integer) slot);
-
+                playerTokens.remove((Integer) slot);
+                table.removeToken(id, slot);
+            }
         }
 
     }
